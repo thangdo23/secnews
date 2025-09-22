@@ -64,7 +64,7 @@ spec:
           initialDelaySeconds: 60
           periodSeconds: 20
         volumeMounts:
-        - mountPath: /srv/uploads
+        - mountPath: /strapi/uploads
           name: strapi-storage
       volumes:
       - name: strapi-storage
