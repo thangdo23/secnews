@@ -1,5 +1,7 @@
-/* src/app/globals.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* src/app/globals.css - Tailwind v4 style */
+@import "tailwindcss";
 
+/* Bạn có thể thêm style custom ở dưới nếu cần */
+html, body {
+  min-height: 100%;
+}
