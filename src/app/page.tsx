@@ -5,9 +5,30 @@ import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 
 const sampleNews = [
-  { id: 1, title: "LastPass Data Breach: What We Know", date: "Sep 21, 2025", category: "Security", image: "https://picsum.photos/seed/1/300/200" },
-  { id: 2, title: "GPT-4 Malware Creates Reverse Shell", date: "Sep 20, 2025", category: "AI Security", image: "https://picsum.photos/seed/2/300/200" },
-  { id: 3, title: "Zero-Day Exploit Leaks Gmail Data", date: "Sep 19, 2025", category: "Cloud Security", image: "https://picsum.photos/seed/3/300/200" }
+  {
+    id: 1,
+    tieude: "LastPass Data Breach: What We Know",
+    noidung: "Summary of the breach...",
+    author: "Admin",
+    published_at: "2025-09-21T00:00:00.000Z",
+    image: { url: "https://picsum.photos/seed/1/300/200" },
+  },
+  {
+    id: 2,
+    tieude: "GPT-4 Malware Creates Reverse Shell",
+    noidung: "Short summary about malware",
+    author: "Security Team",
+    published_at: "2025-09-20T00:00:00.000Z",
+    image: { url: "https://picsum.photos/seed/2/300/200" },
+  },
+  {
+    id: 3,
+    tieude: "Zero-Day Exploit Leaks Gmail Data",
+    noidung: "Exploit affects multiple services",
+    author: "Reporter",
+    published_at: "2025-09-19T00:00:00.000Z",
+    image: { url: "https://picsum.photos/seed/3/300/200" },
+  },
 ];
 
 export default function Home() {

@@ -1,23 +1,28 @@
-type NewsItem = {
-  id: number;
-  title: string;
-  date: string;
-  category: string;
-  image: string;
-};
+import Image from "next/image";
+import { buildImageUrl } from "@/lib/api";
+import { News } from "@/types/news";
 
-export default function NewsList({ items }: { items: NewsItem[] }) {
+export default function NewsList({ items }: { items: News[] }) {
   return (
     <div className="space-y-6">
-      {items.map((item) => (
-        <div key={item.id} className="flex space-x-4">
-          <img src={item.image} alt={item.title} className="w-32 h-20 object-cover rounded" />
-          <div>
-            <h3 className="font-bold text-lg">{item.title}</h3>
-            <p className="text-sm text-gray-500">{item.date} · {item.category}</p>
+      {items.map((item) => {
+        const src = buildImageUrl(item.image?.url);
+        return (
+          <div key={item.id} className="flex space-x-4 items-start">
+            <div className="relative w-32 h-20 rounded overflow-hidden flex-shrink-0">
+              {src ? (
+                <Image src={src} alt={item.tieude} fill className="object-cover" />
+              ) : (
+                <div className="bg-gray-200 w-32 h-20" />
+              )}
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">{item.tieude}</h3>
+              <p className="text-sm text-gray-500">{new Date(item.published_at).toLocaleDateString()} \u00b7 {item.author}</p>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
