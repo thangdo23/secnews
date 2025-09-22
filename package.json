@@ -2,8 +2,8 @@
   "name": "secnews-frontend",
   "version": "0.1.0",
   "private": true,
- "scripts": {
-  "dev": "next dev --no-turbo",
+"scripts": {
+  "dev": "NEXT_JS_FORCE_WEBPACK=true next dev",
   "build": "next build",
   "start": "next start"
 },
