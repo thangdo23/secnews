@@ -25,5 +25,5 @@ spec:
         env:
         - name: NODE_ENV
           value: "production"
-        - name: NEXT_PUBLIC_API_URL
+        - name: NEXT_PUBLIC_CMS_URL
           value: "http://strapi.secnews.svc.cluster.local:1337"

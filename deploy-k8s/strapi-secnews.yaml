@@ -26,15 +26,45 @@ spec:
         - name: DATABASE_PORT
           value: "5432"
         - name: DATABASE_NAME
-          value: strapi
+          valueFrom:
+            secretKeyRef:
+              name: strapi-secret
+              key: DATABASE_NAME
         - name: DATABASE_USERNAME
-          value: strapi
+          valueFrom:
+            secretKeyRef:
+              name: strapi-secret
+              key: DATABASE_USERNAME
         - name: DATABASE_PASSWORD
-          value: 14B]ey1GRq5l
+          valueFrom:
+            secretKeyRef:
+              name: strapi-secret
+              key: DATABASE_PASSWORD
         - name: NODE_ENV
           value: production
+        - name: PUBLIC_STRAPI_URL
+          valueFrom:
+            configMapKeyRef:
+              name: strapi-config
+              key: PUBLIC_STRAPI_URL
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "1337"
+        readinessProbe:
+          httpGet:
+            path: /_health
+            port: 1337
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /_health
+            port: 1337
+          initialDelaySeconds: 30
+          periodSeconds: 20
         volumeMounts:
-        - mountPath: /srv/app
+        - mountPath: /srv/uploads
           name: strapi-storage
       volumes:
       - name: strapi-storage
