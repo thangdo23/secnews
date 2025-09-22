@@ -1,18 +1,16 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { api } from "@/lib/api";
-import { News } from "@/types/news";
+import Image from "next/image";
+import { fetchNewsById } from "@/lib/cms";
+import { buildImageUrl } from "@/lib/api";
+import { notFound } from "next/navigation";
 
-export default function NewsDetailPage() {
-  const { id } = useParams();
-  const [news, setNews] = useState<News | null>(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default async function NewsDetailPage(props: any) {
+  const id = props?.params?.id as string | undefined
+  if (!id) return notFound();
+  const news = await fetchNewsById(id);
+  if (!news) return notFound();
 
-  useEffect(() => {
-    if (id) api.get(`/tintucs/${id}`).then(res => setNews(res.data));
-  }, [id]);
-
-  if (!news) return <p className="text-center mt-10">Đang tải dữ liệu...</p>;
+  const src = buildImageUrl(news.image?.url);
 
   return (
     <main className="max-w-3xl mx-auto py-10 px-4">
@@ -20,12 +18,10 @@ export default function NewsDetailPage() {
       <p className="text-sm text-gray-500 mb-4">
         Tác giả: {news.author} | Ngày đăng: {new Date(news.published_at).toLocaleDateString("vi-VN")}
       </p>
-      {news.image && (
-        <img
-          src={`http://cms.secnews.local${news.image.url}`}
-          alt={news.tieude}
-          className="my-5 rounded shadow-lg w-full max-w-2xl"
-        />
+      {src && (
+        <div className="my-5 rounded shadow-lg w-full max-w-2xl relative h-96">
+          <Image src={src} alt={news.tieude} fill className="object-cover rounded" />
+        </div>
       )}
       <div className="prose max-w-none"><p>{news.noidung}</p></div>
     </main>
