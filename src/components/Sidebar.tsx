@@ -1,21 +1,16 @@
-import Link from "next/link";
-
-export default function Sidebar({ categories = ["Network","System","Security"] }) {
+export default function Sidebar() {
   return (
     <aside className="space-y-6">
-      <div className="p-4 border rounded">
-        <h4 className="font-semibold mb-2">Chuyên mục</h4>
-        <ul className="space-y-2 text-sm">
-          {categories.map(c => <li key={c}><Link href={`/kien-thuc/${c.toLowerCase()}`}>{c}</Link></li>)}
-        </ul>
+      <div className="bg-gray-200 h-40 flex items-center justify-center rounded">
+        Banner Ad
       </div>
-
-      <div className="p-4 border rounded">
-        <h4 className="font-semibold mb-2">Đăng ký nhận tin</h4>
-        <form>
-          <input className="w-full border rounded px-2 py-1 mb-2" placeholder="Email..." />
-          <button className="w-full bg-blue-600 text-white py-2 rounded">Đăng ký</button>
-        </form>
+      <div>
+        <h3 className="font-semibold text-lg mb-3">Trending News</h3>
+        <ul className="list-disc ml-5 space-y-2 text-blue-700">
+          <li><a href="#">Big Breach Hits Company X</a></li>
+          <li><a href="#">Zero-Day Exploit Found</a></li>
+          <li><a href="#">How to Secure Your Data</a></li>
+        </ul>
       </div>
     </aside>
   );

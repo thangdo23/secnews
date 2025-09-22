@@ -1,30 +1,19 @@
-import Link from "next/link";
-import { News } from "@/types/news";
+type HeroProps = {
+  title: string;
+  description: string;
+  image: string;
+};
 
-export default function Hero({ item }: { item: News | null }) {
-  if (!item) return null;
+export default function Hero({ title, description, image }: HeroProps) {
   return (
-    <section className="max-w-6xl mx-auto px-4 py-8">
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          {item.image && (
-            <img src={`http://cms.secnews.local${item.image.url}`} alt={item.tieude}
-                 className="w-full h-72 object-cover rounded" />
-          )}
-          <h1 className="text-3xl font-bold mt-4">{item.tieude}</h1>
-          <p className="text-gray-700 mt-2">{item.noidung.slice(0, 220)}...</p>
-          <Link href={`/tin-tuc/${item.id}`} className="inline-block mt-3 text-blue-600">Xem chi tiết →</Link>
-        </div>
-        <aside className="hidden md:block">
-          <div className="p-4 border rounded">
-            <h3 className="font-semibold mb-2">Bài đọc nhiều</h3>
-            {/* list small items */}
-            <ul className="space-y-2 text-sm">
-              <li>Sample popular 1</li>
-              <li>Sample popular 2</li>
-            </ul>
-          </div>
-        </aside>
+    <section className="max-w-7xl mx-auto px-6 mt-6 grid md:grid-cols-2 gap-8">
+      <img src={image} alt={title} className="rounded-lg w-full h-80 object-cover" />
+      <div className="flex flex-col justify-center">
+        <h2 className="text-3xl font-bold mb-3">{title}</h2>
+        <p className="text-gray-700 mb-4">{description}</p>
+        <a href="#" className="text-blue-600 font-semibold hover:underline">
+          Read More →
+        </a>
       </div>
     </section>
   );
