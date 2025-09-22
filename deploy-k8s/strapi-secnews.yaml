@@ -51,17 +51,17 @@ spec:
           value: "0.0.0.0"
         - name: PORT
           value: "1337"
+        # Strapi does not expose a standard /_health endpoint by default.
+        # Use a TCP socket probe on port 1337 so Kubernetes checks the container port readiness.
         readinessProbe:
-          httpGet:
-            path: /_health
+          tcpSocket:
             port: 1337
-          initialDelaySeconds: 10
+          initialDelaySeconds: 20
           periodSeconds: 10
         livenessProbe:
-          httpGet:
-            path: /_health
+          tcpSocket:
             port: 1337
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 20
         volumeMounts:
         - mountPath: /srv/uploads
