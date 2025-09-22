@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: secnews-frontend
+  namespace: secnews
+spec:
+  selector:
+    app: secnews-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3333
+  type: NodePort
+

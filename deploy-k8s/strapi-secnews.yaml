@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: strapi
+  namespace: secnews
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: strapi
+  template:
+    metadata:
+      labels:
+        app: strapi
+    spec:
+      containers:
+      - name: strapi
+        image: strapi/strapi:latest
+        ports:
+        - containerPort: 1337
+        env:
+        - name: DATABASE_CLIENT
+          value: postgres
+        - name: DATABASE_HOST
+          value: postgres.secnewsdb.svc.cluster.local
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_NAME
+          value: strapi
+        - name: DATABASE_USERNAME
+          value: strapi
+        - name: DATABASE_PASSWORD
+          value: 14B]ey1GRq5l
+        - name: NODE_ENV
+          value: production
+        volumeMounts:
+        - mountPath: /srv/app
+          name: strapi-storage
+      volumes:
+      - name: strapi-storage
+        persistentVolumeClaim:
+          claimName: strapi-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: strapi-pvc
+  namespace: secnews
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-rwx
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: strapi
+  namespace: secnews
+spec:
+  selector:
+    app: strapi
+  ports:
+    - port: 1337
+      targetPort: 1337
+

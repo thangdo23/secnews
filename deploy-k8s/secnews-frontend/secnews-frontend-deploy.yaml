@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secnews-frontend
+  namespace: secnews
+  labels:
+    app: secnews-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: secnews-frontend
+  template:
+    metadata:
+      labels:
+        app: secnews-frontend
+    spec:
+      imagePullSecrets:       # thêm đoạn này
+        - name: regcred
+      containers:
+      - name: secnews-frontend
+        image: dockerhub.ntpam.com.vn/secnews/secnews-frontend:latest
+        ports:
+        - containerPort: 3333
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: NEXT_PUBLIC_API_URL
+          value: "http://strapi.secnews.svc.cluster.local:1337"
