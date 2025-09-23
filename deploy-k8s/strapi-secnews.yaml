@@ -13,11 +13,25 @@ spec:
       labels:
         app: strapi
     spec:
+      # Ensure the mounted volume is writable by Strapi (UID/GID 1000)
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+      - name: fix-permissions
+        image: busybox:1.35
+        command: ["sh", "-c", "chown -R 1000:1000 /srv/app/public/uploads || true"]
+        volumeMounts:
+        - name: strapi-storage
+          mountPath: /srv/app/public/uploads
+
       containers:
       - name: strapi
         image: strapi/strapi:latest
         ports:
         - containerPort: 1337
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
         env:
         - name: DATABASE_CLIENT
           value: postgres
@@ -64,7 +78,7 @@ spec:
           initialDelaySeconds: 60
           periodSeconds: 20
         volumeMounts:
-        - mountPath: /strapi/uploads
+        - mountPath: /srv/app/public/uploads
           name: strapi-storage
       volumes:
       - name: strapi-storage
