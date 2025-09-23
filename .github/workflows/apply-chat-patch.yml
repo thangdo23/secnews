@@ -1,61 +1,126 @@
-# .github/workflows/apply-chat-patch.yml
-name: Apply patch from chat
-
-on:
-  workflow_dispatch:
-    inputs:
-      patch:
-        description: "Unified diff (.patch) nội dung do ChatGPT cung cấp"
-        required: true
-        type: string
-      base:
-        description: "Base branch"
-        required: true
-        default: "main"
-
-permissions:
-  contents: write
-  pull-requests: write
-
-jobs:
-  apply:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.base }}
-          fetch-depth: 0
-
-      - id: vars
-        run: echo "branch=chore/apply-patch-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
-
-      - name: Apply patch (3-way)
-        shell: bash
-        run: |
-          set -euo pipefail
-          git checkout -b "${{ steps.vars.outputs.branch }}"
-          cat > /tmp/changes.patch <<'PATCH'
-${{ inputs.patch }}
-PATCH
-          # cố gắng 3-way merge, nếu fail thì fallback
-          if ! git apply --index --3way --whitespace=nowarn /tmp/changes.patch; then
-            echo "::warning::3-way apply failed, trying regular apply"
-            git apply --index --whitespace=nowarn /tmp/changes.patch
-          fi
-          # nếu patch không tạo thay đổi, báo lỗi
-          if git diff --cached --quiet; then
-            echo "::error::Patch produced no changes."
-            exit 1
-          fi
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: ${{ steps.vars.outputs.branch }}
-          base: ${{ inputs.base }}
-          title: "Apply patch from chat"
-          commit-message: "chore: apply patch from chat"
-          body: |
-            PR được tạo tự động từ workflow_dispatch bằng patch dán thủ công.
-            Actor: ${{ github.actor }}
+diff --git a/.env.example b/.env.example
+new file mode 100644
+index 0000000..5fdcf8c
+--- /dev/null
++++ b/.env.example
+@@ -0,0 +1,6 @@
++# Frontend → Strapi
++NEXT_PUBLIC_CMS_URL=http://cms.secnews.local
++# v4 | v3 | auto
++NEXT_PUBLIC_CMS_STRAPI_VERSION=auto
++
++# Copy file này thành .env.local khi chạy dev
+diff --git a/src/lib/env.ts b/src/lib/env.ts
+new file mode 100644
+index 0000000..9d2f6a1
+--- /dev/null
++++ b/src/lib/env.ts
+@@ -0,0 +1,36 @@
++import { z } from "zod";
++
++// Validate ENV ở runtime để tránh crash do thiếu cấu hình.
++const EnvSchema = z.object({
++  NEXT_PUBLIC_CMS_URL: z.string().url(),
++  NEXT_PUBLIC_CMS_STRAPI_VERSION: z.enum(["v3", "v4", "auto"]).default("auto"),
++});
++
++export type Env = z.infer<typeof EnvSchema>;
++
++let cached: Env | null = null;
++
++export function getEnv(): Env {
++  if (cached) return cached;
++  const parsed = EnvSchema.safeParse({
++    NEXT_PUBLIC_CMS_URL: process.env.NEXT_PUBLIC_CMS_URL,
++    NEXT_PUBLIC_CMS_STRAPI_VERSION: (process.env.NEXT_PUBLIC_CMS_STRAPI_VERSION || "auto").toLowerCase(),
++  });
++  if (!parsed.success) {
++    // Không log chi tiết để tránh lộ secret.
++    throw new Error("Invalid environment variables for frontend. Please check .env.local");
++  }
++  cached = parsed.data;
++  return cached;
++}
+diff --git a/src/lib/cms.ts b/src/lib/cms.ts
+new file mode 100644
+index 0000000..a6f2c3d
+--- /dev/null
++++ b/src/lib/cms.ts
+@@ -0,0 +1,58 @@
++import { getEnv } from "./env";
++
++type FetcherInit = RequestInit & { next?: { revalidate?: number } };
++
++function withBase(url: string, path: string) {
++  return `${url.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
++}
++
++async function tryFetchJson<T>(input: string, init?: FetcherInit): Promise<{ ok: boolean; data?: T }> {
++  try {
++    const res = await fetch(input, init);
++    if (!res.ok) return { ok: false };
++    return { ok: true, data: (await res.json()) as T };
++  } catch {
++    return { ok: false };
++  }
++}
++
++/**
++ * Gọi Strapi v4, nếu thất bại và cấu hình là 'auto' thì fallback sang v3.
++ * Vì sao: giảm rủi ro sai version khi đồng hành nhiều môi trường.
++ */
++export async function cmsGet<T>(pathV4: string, pathV3: string, init?: FetcherInit): Promise<T> {
++  const { NEXT_PUBLIC_CMS_URL, NEXT_PUBLIC_CMS_STRAPI_VERSION } = getEnv();
++
++  if (NEXT_PUBLIC_CMS_STRAPI_VERSION === "v4" || NEXT_PUBLIC_CMS_STRAPI_VERSION === "auto") {
++    const v4 = await tryFetchJson<T>(withBase(NEXT_PUBLIC_CMS_URL, pathV4), init);
++    if (v4.ok) return v4.data as T;
++    if (NEXT_PUBLIC_CMS_STRAPI_VERSION === "v4") {
++      throw new Error("Strapi v4 request failed");
++    }
++  }
++
++  const v3 = await tryFetchJson<T>(withBase(NEXT_PUBLIC_CMS_URL, pathV3), init);
++  if (v3.ok) return v3.data as T;
++
++  throw new Error("CMS request failed (v4 and v3)");
++}
++
++// Ví dụ API cụ thể: articles — tùy chỉnh theo schema của bạn
++export async function getArticles(params?: Record<string, string>) {
++  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
++  // v4: /api/articles ; v3: /articles
++  return cmsGet<any>(`/api/articles${qs}`, `/articles${qs}`, { next: { revalidate: 60 } });
++}
+diff --git a/src/test/setup.ts b/src/test/setup.ts
+new file mode 100644
+index 0000000..e8cda12
+--- /dev/null
++++ b/src/test/setup.ts
+@@ -0,0 +1,2 @@
++// Bổ sung matcher DOM cho Vitest/JSDOM.
++import "@testing-library/jest-dom";
+diff --git a/.github/pr/secnews-fixes.md b/.github/pr/secnews-fixes.md
+new file mode 100644
+index 0000000..a1a2b3c
+--- /dev/null
++++ b/.github/pr/secnews-fixes.md
+@@ -0,0 +1,21 @@
++## Summary
++Harden cấu hình bằng cách thêm env validation, CMS client v3/v4 (auto fallback), test setup cơ bản và env example.
++
++## Changes
++- `.env.example`: biến `NEXT_PUBLIC_CMS_URL`, `NEXT_PUBLIC_CMS_STRAPI_VERSION`
++- `src/lib/env.ts`: validate ENV với zod
++- `src/lib/cms.ts`: fetch wrapper v4→v3
++- `src/test/setup.ts`: jest-dom cho Vitest/JSDOM
++
++## Notes
++- Cài thêm dependencies sau khi merge:
++  - `npm i zod`
++  - `npm i -D @testing-library/jest-dom`
++  - (Nếu đã có Vitest, đảm bảo `environment: "jsdom"` + `setupFiles` trong `vitest.config.ts`)
++
++## Follow-up
++- (Tuỳ chọn) Dọn cấu hình PostCSS trùng lặp: giữ `postcss.config.mjs`, xoá `postcss.config.js`.
++- (Tuỳ chọn) Cho phép domain ảnh Strapi trong `next.config.*` nếu cần.
