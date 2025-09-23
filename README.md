@@ -36,3 +36,32 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 # secnews
+
+## Point frontend to Strapi (cms.secnews.local)
+
+This project reads the CMS base URL from `NEXT_PUBLIC_CMS_URL`. For your cluster set this to:
+
+```
+NEXT_PUBLIC_CMS_URL=http://cms.secnews.local
+```
+
+If your Strapi instance is version 3 (older), set the detection flag in `.env` or `.env.local`:
+
+```
+NEXT_PUBLIC_CMS_STRAPI_VERSION=3
+```
+
+By default the frontend will try the v4 (/api/*) shape first, then fallback to v3 when `NEXT_PUBLIC_CMS_STRAPI_VERSION=auto`.
+
+Create a local `.env.local` with the values you need or copy `.env.example`:
+
+```bash
+cp .env.example .env.local
+# then edit .env.local if needed
+```
+
+Run the dev server after setting environment variables:
+
+```bash
+npx next dev -p 3333
+```

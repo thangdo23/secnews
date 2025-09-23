@@ -1,11 +1,14 @@
-export default function SystemPage() {
+import NewsList from "@/components/NewsList";
+import { fetchNewsList } from "@/lib/cms";
+
+export default async function SystemPage() {
+  const news = await fetchNewsList().catch(() => [])
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-3">Kiến Thức System</h1>
-      <p className="text-gray-700">
-        Chuyên mục System chia sẻ kiến thức về quản trị hệ thống, Linux, Windows Server, 
-        các dịch vụ nền tảng như DNS, DHCP, Web Server, Database...
-      </p>
-    </div>
-  );
+    <main className="max-w-4xl mx-auto py-10 px-4">
+      <h1 className="text-3xl font-bold mb-8 text-center">System</h1>
+      <p className="text-center text-gray-600 mb-6">Danh sách bài viết về quản trị hệ thống và hạ tầng.</p>
+      <NewsList items={news} />
+    </main>
+  )
 }
+

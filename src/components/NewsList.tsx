@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { buildImageUrl } from "@/lib/api";
 import { News } from "@/types/news";
 
@@ -8,7 +9,7 @@ export default function NewsList({ items }: { items: News[] }) {
       {items.map((item) => {
         const src = buildImageUrl(item.image?.url);
         return (
-          <div key={item.id} className="flex space-x-4 items-start">
+          <Link key={item.id} href={`/tin-tuc/${item.id}`} className="flex space-x-4 items-start hover:bg-gray-50 p-2 rounded">
             <div className="relative w-32 h-20 rounded overflow-hidden flex-shrink-0">
               {src ? (
                 <Image src={src} alt={item.tieude} fill className="object-cover" />
@@ -18,9 +19,9 @@ export default function NewsList({ items }: { items: News[] }) {
             </div>
             <div>
               <h3 className="font-bold text-lg">{item.tieude}</h3>
-              <p className="text-sm text-gray-500">{new Date(item.published_at).toLocaleDateString()} \u00b7 {item.author}</p>
+              <p className="text-sm text-gray-500">{new Date(item.published_at).toLocaleDateString()}  {item.author}</p>
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

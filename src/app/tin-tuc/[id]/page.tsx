@@ -3,9 +3,10 @@ import { fetchNewsById } from "@/lib/cms";
 import { buildImageUrl } from "@/lib/api";
 import { notFound } from "next/navigation";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default async function NewsDetailPage(props: any) {
-  const id = props?.params?.id as string | undefined
+export default async function NewsDetailPage({ params }: { params: { id: string } } | any) {
+  // Next.js App Router may provide lazy params; await if it's a promise
+  const resolvedParams = await (params as Promise<any> || params)
+  const id = resolvedParams?.id as string | undefined
   if (!id) return notFound();
   const news = await fetchNewsById(id);
   if (!news) return notFound();
