@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: strapi-debug
+  namespace: secnews
+spec:
+  restartPolicy: Never
+  containers:
+  - name: strapi
+    image: strapi/strapi:latest
+    command: ["sh", "-c", "strapi start || sleep 3600"]
+    env:
+    - name: DATABASE_CLIENT
+      value: postgres
+    - name: DATABASE_HOST
+      value: postgres.secnewsdb.svc.cluster.local
+    - name: DATABASE_PORT
+      value: "5432"
+    - name: DATABASE_NAME
+      valueFrom:
+        secretKeyRef:
+          name: strapi-secret
+          key: DATABASE_NAME
+    - name: DATABASE_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: strapi-secret
+          key: DATABASE_USERNAME
+    - name: DATABASE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: strapi-secret
+          key: DATABASE_PASSWORD
+    - name: NODE_ENV
+      value: production
+    - name: PUBLIC_STRAPI_URL
+      valueFrom:
+        configMapKeyRef:
+          name: strapi-config
+          key: PUBLIC_STRAPI_URL
+    volumeMounts:
+    - name: strapi-storage
+      mountPath: /srv/app/public/uploads
+  volumes:
+  - name: strapi-storage
+    persistentVolumeClaim:
+      claimName: strapi-pvc
