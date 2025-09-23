@@ -1,0 +1,61 @@
+# .github/workflows/apply-chat-patch.yml
+name: Apply patch from chat
+
+on:
+  workflow_dispatch:
+    inputs:
+      patch:
+        description: "Unified diff (.patch) nội dung do ChatGPT cung cấp"
+        required: true
+        type: string
+      base:
+        description: "Base branch"
+        required: true
+        default: "main"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base }}
+          fetch-depth: 0
+
+      - id: vars
+        run: echo "branch=chore/apply-patch-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+      - name: Apply patch (3-way)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -b "${{ steps.vars.outputs.branch }}"
+          cat > /tmp/changes.patch <<'PATCH'
+${{ inputs.patch }}
+PATCH
+          # cố gắng 3-way merge, nếu fail thì fallback
+          if ! git apply --index --3way --whitespace=nowarn /tmp/changes.patch; then
+            echo "::warning::3-way apply failed, trying regular apply"
+            git apply --index --whitespace=nowarn /tmp/changes.patch
+          fi
+          # nếu patch không tạo thay đổi, báo lỗi
+          if git diff --cached --quiet; then
+            echo "::error::Patch produced no changes."
+            exit 1
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: ${{ steps.vars.outputs.branch }}
+          base: ${{ inputs.base }}
+          title: "Apply patch from chat"
+          commit-message: "chore: apply patch from chat"
+          body: |
+            PR được tạo tự động từ workflow_dispatch bằng patch dán thủ công.
+            Actor: ${{ github.actor }}
