@@ -13,25 +13,11 @@ spec:
       labels:
         app: strapi
     spec:
-      # Ensure the mounted volume is writable by Strapi (UID/GID 1000)
-      securityContext:
-        fsGroup: 1000
-      initContainers:
-      - name: fix-permissions
-        image: busybox:1.35
-        command: ["sh", "-c", "chown -R 1000:1000 /srv/app/public/uploads || true"]
-        volumeMounts:
-        - name: strapi-storage
-          mountPath: /srv/app/public/uploads
-
       containers:
       - name: strapi
         image: strapi/strapi:latest
         ports:
         - containerPort: 1337
-        securityContext:
-          runAsUser: 1000
-          runAsGroup: 1000
         env:
         - name: DATABASE_CLIENT
           value: postgres
@@ -67,16 +53,6 @@ spec:
           value: "1337"
         # Strapi does not expose a standard /_health endpoint by default.
         # Use a TCP socket probe on port 1337 so Kubernetes checks the container port readiness.
-        readinessProbe:
-          tcpSocket:
-            port: 1337
-          initialDelaySeconds: 20
-          periodSeconds: 10
-        livenessProbe:
-          tcpSocket:
-            port: 1337
-          initialDelaySeconds: 60
-          periodSeconds: 20
         volumeMounts:
         - mountPath: /srv/app
           name: strapi-storage
