@@ -1,5 +1,6 @@
-import { api, API_BASE } from './api'
+import { API_URL, API_BASE } from './api'
 import { News } from '@/types/news'
+import { cache } from 'react'
 
 const CONTENT_TYPE = process.env.NEXT_PUBLIC_CMS_CONTENT_TYPE || 'tintucs'
 const STRAPI_VERSION = (process.env.NEXT_PUBLIC_CMS_STRAPI_VERSION || 'auto').toLowerCase() // '3' | '4' | 'auto'
@@ -33,6 +34,7 @@ function mapV4Item(item: Record<string, unknown>): News {
     tieude: toStr(attrs['tieude']) || toStr(attrs['title']),
     noidung: toStr(attrs['noidung']) || toStr(attrs['content']),
     author: toStr(attrs['author']) || '—',
+    category: toStr(attrs['category']),
     published_at: toStr(attrs['published_at']) || toStr(attrs['publishedAt']) || new Date().toISOString(),
     image: imageUrl ? { url: imageUrl } : undefined,
   }
@@ -74,6 +76,7 @@ function mapV3Item(item: Record<string, unknown>): News {
     tieude: toStr(item['tieude']) || toStr(item['title']),
     noidung: toStr(item['noidung']) || toStr(item['content']),
     author: toStr(item['author']) || '—',
+    category: toStr(item['category']),
     published_at: toStr(item['published_at']) || toStr(item['publishedAt']) || new Date().toISOString(),
     image: imageUrl ? { url: imageUrl } : undefined,
   }
@@ -86,96 +89,132 @@ function mapAnyItem(item: unknown): News {
   return mapV3Item(item as Record<string, unknown>)
 }
 
-async function tryV4List(): Promise<News[] | null> {
-  const url = `/api/${CONTENT_TYPE}?populate=*&sort[0]=published_at:desc`
-  if (process.env.NODE_ENV !== 'production') console.debug('[cms] tryV4List ->', url)
-  const res = await api.get(url)
-  const resData = isRecord(res.data) ? res.data as Record<string, unknown> : undefined
-  const data = resData && resData['data'] ? resData['data'] : null
-  if (Array.isArray(data)) return data.map(mapAnyItem)
-  return null
-}
-
-async function tryV3List(): Promise<News[] | null> {
-  const url = `/${CONTENT_TYPE}?_limit=100&_sort=published_at:DESC`
-  if (process.env.NODE_ENV !== 'production') console.debug('[cms] tryV3List ->', url)
-  const res = await api.get(url)
-  // v3 often returns array directly, but some proxies may wrap it
-  if (Array.isArray(res.data)) return res.data.map(mapAnyItem)
-  if (isRecord(res.data) && Array.isArray((res.data as Record<string, unknown>)['data'])) return ((res.data as Record<string, unknown>)['data'] as unknown[]).map(mapAnyItem)
-  return null
-}
-
-export async function fetchNewsList(): Promise<News[]> {
+export const fetchNewsList = cache(async (page = 1, pageSize = 10, category?: string): Promise<{ data: News[]; pageCount: number }> => {
   try {
-    if (STRAPI_VERSION === '3') {
-      const v3 = await tryV3List()
-      if (v3) return v3
-    } else if (STRAPI_VERSION === '4') {
-      const v4 = await tryV4List()
-      if (v4) return v4
-    } else {
-      // auto: try v4 first, then v3
-      try {
-        const v4 = await tryV4List()
-        if (v4) return v4
-      } catch (e) {
-        // ignore and fallback
-      }
-      const v3 = await tryV3List()
-      if (v3) return v3
+    if (!API_URL) {
+      throw new Error("NEXT_PUBLIC_STRAPI_API_URL is not defined. Please set it in your .env file.");
     }
-    return []
+
+    const isV3 = STRAPI_VERSION === '3';
+
+    if (isV3) {
+      // Strapi v3 logic
+      const listUrl = new URL(`${API_URL}/${CONTENT_TYPE}`);
+      listUrl.searchParams.set("_limit", pageSize.toString());
+      listUrl.searchParams.set("_start", ((page - 1) * pageSize).toString());
+      listUrl.searchParams.set("_sort", "published_at:DESC");
+      if (category && category !== 'All') {
+        listUrl.searchParams.set("category_eq", category);
+      }
+
+      const countUrl = new URL(`${API_URL}/${CONTENT_TYPE}/count`);
+      if (category && category !== 'All') {
+        countUrl.searchParams.set("category_eq", category);
+      }
+
+      const [listRes, countRes] = await Promise.all([
+        fetch(listUrl.toString(), { next: { revalidate: 60 } }),
+        fetch(countUrl.toString(), { next: { revalidate: 60 } })
+      ]);
+
+      if (!listRes.ok) throw new Error('Failed to fetch news list (v3)');
+      
+      const listBody = await listRes.json();
+      const totalCount = countRes.ok ? await countRes.json() : 0;
+      
+      const data = Array.isArray(listBody) ? listBody.map(mapAnyItem) : [];
+      const pageCount = Math.ceil(totalCount / pageSize) || 1;
+
+      return { data, pageCount };
+    } else {
+      // Strapi v4 logic
+      const url = new URL(`${API_URL}/api/${CONTENT_TYPE}`);
+      url.searchParams.set("fields[0]", "tieude");
+      url.searchParams.set("fields[1]", "noidung");
+      url.searchParams.set("fields[2]", "published_at");
+      url.searchParams.set("fields[3]", "author");
+      url.searchParams.set("fields[4]", "category");
+      url.searchParams.set("populate", "image");
+      url.searchParams.set("sort[0]", "published_at:desc");
+      url.searchParams.set("pagination[page]", page.toString());
+      url.searchParams.set("pagination[pageSize]", pageSize.toString());
+
+      if (category && category !== 'All') {
+        url.searchParams.set("filters[category][$eq]", category);
+      }
+
+      const res = await fetch(url.toString(), { next: { revalidate: 60 } });
+      if (!res.ok) throw new Error('Failed to fetch news list (v4)');
+
+      const body = await res.json();
+      const data = Array.isArray(body.data) ? body.data.map(mapAnyItem) : [];
+      const pageCount = body.meta?.pagination?.pageCount || 1;
+
+      return { data, pageCount };
+    }
   } catch (err) {
-    console.warn('fetchNewsList failed, returning mock data', err)
-    return [
-      {
-        id: 1,
-        tieude: 'Mock: LastPass Data Breach',
-        noidung: 'Mock summary',
-        author: 'Dev',
-        published_at: new Date().toISOString(),
-        image: { url: 'https://picsum.photos/seed/mock/300/200' },
-      },
-    ]
+    console.warn('fetchNewsList failed, returning empty data', err)
+    return { data: [], pageCount: 0 };
   }
-}
+});
 
-async function tryV4ById(id: number | string): Promise<News | null> {
-  const url = `/api/${CONTENT_TYPE}/${id}?populate=*`
-  if (process.env.NODE_ENV !== 'production') console.debug('[cms] tryV4ById ->', url)
-  const res = await api.get(url)
-  const resData = isRecord(res.data) ? res.data as Record<string, unknown> : undefined
-  const payload = resData && resData['data'] ? resData['data'] : null
-  if (!payload) return null
-  return mapAnyItem(payload)
-}
-
-async function tryV3ById(id: number | string): Promise<News | null> {
-  const url = `/${CONTENT_TYPE}/${id}`
-  if (process.env.NODE_ENV !== 'production') console.debug('[cms] tryV3ById ->', url)
-  const res = await api.get(url)
-  if (isRecord(res.data)) return mapAnyItem(res.data)
-  return null
-}
-
-export async function fetchNewsById(id: number | string): Promise<News | null> {
+export const fetchNewsById = cache(async (id: number | string): Promise<News | null> => {
   try {
-    if (STRAPI_VERSION === '3') {
-      return await tryV3ById(id)
-    } else if (STRAPI_VERSION === '4') {
-      return await tryV4ById(id)
-    } else {
-      try {
-        const v4 = await tryV4ById(id)
-        if (v4) return v4
-      } catch (e) {
-        // ignore and fallback
-      }
-      return await tryV3ById(id)
+    if (!API_URL) {
+      throw new Error("NEXT_PUBLIC_STRAPI_API_URL is not defined. Please set it in your .env file.");
     }
+    const isV3 = STRAPI_VERSION === '3';
+    const urlPath = isV3 
+      ? `${API_URL}/${CONTENT_TYPE}/${id}`
+      : `${API_URL}/api/${CONTENT_TYPE}/${id}`;
+    
+    const url = new URL(urlPath);
+
+    if (!isV3) {
+      url.searchParams.set("populate", "image,author");
+    }
+
+    const res = await fetch(url.toString(), { next: { revalidate: 60 } }); // Cache for 60 seconds
+    if (!res.ok) throw new Error(`Failed to fetch news with id ${id}`);
+    const body = await res.json();
+    return mapAnyItem(body.data ?? body);
   } catch (err) {
     console.warn('fetchNewsById failed', err)
     return null
+  }
+});
+
+export async function fetchRelatedNews(category: string, currentId: number): Promise<News[]> {
+  if (!category) return [];
+  try {
+    if (!API_URL) {
+      throw new Error("NEXT_PUBLIC_STRAPI_API_URL is not defined. Please set it in your .env file.");
+    }
+    const isV3 = STRAPI_VERSION === '3';
+    const url = new URL(isV3 ? `${API_URL}/${CONTENT_TYPE}` : `${API_URL}/api/${CONTENT_TYPE}`);
+
+    if (isV3) {
+      url.searchParams.set("category", category);
+      url.searchParams.set("id_ne", currentId.toString());
+      url.searchParams.set("_sort", "published_at:DESC");
+      url.searchParams.set("_limit", "3");
+    } else {
+      // Strapi v4 filtering syntax.
+      url.searchParams.set("fields[0]", "tieude");
+      url.searchParams.set("filters[category][$eq]", category);
+      url.searchParams.set("filters[id][$ne]", currentId.toString());
+      url.searchParams.set("sort[0]", "published_at:desc");
+      url.searchParams.set("pagination[limit]", "3");
+      url.searchParams.set("populate", "image");
+    }
+
+    const res = await fetch(url.toString(), { next: { revalidate: 3600 } }); // Cache for 1 hour
+    if (!res.ok) return [];
+    const body = await res.json();
+    const items = isV3 ? body : body.data;
+    return Array.isArray(items) ? items.map(mapAnyItem) : [];
+  } catch (err) {
+    console.warn('fetchRelatedNews failed', err);
+    return [];
   }
 }

@@ -1,10 +1,10 @@
 import axios from "axios";
 
-// Use NEXT_PUBLIC_CMS_URL on the client; fall back to local CMS host for dev only.
-export const NEXT_PUBLIC_CMS_URL =
-  process.env.NEXT_PUBLIC_CMS_URL || process.env.NEXT_PUBLIC_API_URL || "http://cms.secnews.local";
+// Read the API URL from environment variables.
+export const API_URL =
+  process.env.NEXT_PUBLIC_STRAPI_API_URL || process.env.NEXT_PUBLIC_CMS_URL;
 
-export const API_BASE = NEXT_PUBLIC_CMS_URL;
+export const API_BASE = API_URL ? API_URL.replace(/\/api\/?$/, '') : '';
 
 export const api = axios.create({
   baseURL: API_BASE,

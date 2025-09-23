@@ -6,7 +6,7 @@ import { News } from "@/types/news";
 export default function NewsList({ items }: { items: News[] }) {
   return (
     <div className="space-y-6">
-      {items.map((item) => {
+      {(items || []).map((item) => {
         const src = buildImageUrl(item.image?.url);
         return (
           <Link key={item.id} href={`/tin-tuc/${item.id}`} className="flex space-x-4 items-start hover:bg-gray-50 p-2 rounded">
